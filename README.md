@@ -109,7 +109,7 @@ Other Claude clients that support MCP over **stdio** (e.g. some CLI or IDE integ
 |------|---------|
 | `cronofy_account_information` | Account metadata |
 | `cronofy_profile_information` | Linked calendar profiles |
-| `cronofy_create_application_calendar` | Upsert application calendar (`POST /v1/application_calendars`), then set display name (`POST /v1/calendars`). Response includes `oauth_for_this_application_calendar` — treat like secrets; separate sub from `CRONOFY_REFRESH_TOKEN`. |
+| `cronofy_create_application_calendar` | Upsert application calendar (`POST /v1/application_calendars`), then list calendars (`GET /v1/calendars`) with that token. One calendar exists per application calendar; default name is Cronofy-defined (often the id slug). Response includes `oauth_for_this_application_calendar` — treat like secrets; separate sub from `CRONOFY_REFRESH_TOKEN`. |
 | `cronofy_list_calendars` | List calendars / `calendar_id`s |
 | `cronofy_read_events` | Read events (`from`+`to` or `next_page`) |
 | `cronofy_create_or_update_event` | Upsert managed event |

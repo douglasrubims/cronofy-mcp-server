@@ -113,21 +113,19 @@ async function main() {
     "cronofy_create_application_calendar",
     {
       description:
-        "POST /v1/application_calendars (upsert by application_calendar_id), then POST /v1/calendars to set display name. Uses client_id/client_secret from env. Response includes oauth_for_this_application_calendar — store tokens securely; they are a separate sub from CRONOFY_REFRESH_TOKEN.",
+        "POST /v1/application_calendars (upsert by application_calendar_id), then GET /v1/calendars with the returned access_token. Application calendars already include one calendar; naming follows Cronofy (often the application_calendar_id slug). Uses client_id/client_secret from env. Response includes oauth_for_this_application_calendar — store tokens securely; separate sub from CRONOFY_REFRESH_TOKEN.",
       inputSchema: z.object({
         calendar_name: z
           .string()
-          .describe('Display name, e.g. "Pompano Beach"'),
+          .describe(
+            'Human label for your records and slug derivation, e.g. "Pompano Beach"'
+          ),
         application_calendar_id: z
           .string()
           .optional()
           .describe(
             "Stable app-side id (upsert key). Omit to derive slug from calendar_name."
-          ),
-        color: z
-          .string()
-          .optional()
-          .describe("Optional hex color for createCalendar, e.g. #49BED8")
+          )
       })
     },
     async args => {
@@ -142,8 +140,7 @@ async function main() {
 
         const data = await provisionApplicationCalendarWithName(env, {
           application_calendar_id,
-          calendar_name,
-          color: args.color
+          calendar_name
         });
 
         return jsonResult(data);

@@ -16,7 +16,7 @@ export function slugifyApplicationCalendarId(name) {
 
 /**
  * @param {{ clientId: string; clientSecret: string; dataCenter?: string }} env
- * @param {{ application_calendar_id: string; calendar_name: string; color?: string }} params
+ * @param {{ application_calendar_id: string; calendar_name?: string }} params
  */
 export async function provisionApplicationCalendarWithName(env, params) {
   const dc = env.dataCenter ? { data_center: env.dataCenter } : {};
@@ -31,36 +31,19 @@ export async function provisionApplicationCalendarWithName(env, params) {
     application_calendar_id: params.application_calendar_id
   });
 
-  const profileId = provisioned.linking_profile?.profile_id;
-
-  if (!profileId)
-    throw new Error(
-      "application_calendar response missing linking_profile.profile_id"
-    );
+  if (!provisioned.access_token)
+    throw new Error("application_calendar response missing access_token");
 
   const appClient = new Cronofy({
     access_token: provisioned.access_token,
     ...dc
   });
 
-  /** @type {unknown} */
-  let namedCalendar = null;
-
-  try {
-    namedCalendar = await appClient.createCalendar({
-      profile_id: profileId,
-      name: params.calendar_name,
-      ...(params.color?.trim() ? { color: params.color.trim() } : {})
-    });
-  } catch (e) {
-    namedCalendar = {
-      failed: true,
-      message: e instanceof Error ? e.message : String(e)
-    };
-  }
+  const listed = await appClient.listCalendars();
 
   return {
     request_application_calendar_id: params.application_calendar_id,
+    requested_display_name: params.calendar_name?.trim() || undefined,
     provision: {
       application_calendar_id: provisioned.application_calendar_id,
       sub: provisioned.sub,
@@ -73,6 +56,7 @@ export async function provisionApplicationCalendarWithName(env, params) {
       access_token: provisioned.access_token,
       refresh_token: provisioned.refresh_token
     },
-    create_calendar: namedCalendar
+    list_calendars: listed,
+    note: "Application calendars ship with one profile and one calendar (see list_calendars). Tokens use read_write scope without create_calendar; default calendar naming follows Cronofy/application_calendar_id — use list_calendars.calendar_name and calendar_id for API calls."
   };
 }
