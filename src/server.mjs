@@ -12,6 +12,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import dotenv from "dotenv";
 import { z } from "zod";
 
+import {
+  provisionApplicationCalendarWithName,
+  slugifyApplicationCalendarId
+} from "./cronofy-application-calendar.mjs";
 import { loadCronofyEnv } from "./cronofy-config.mjs";
 import { CronofySession } from "./cronofy-session.mjs";
 
@@ -65,7 +69,7 @@ async function main() {
     },
     {
       instructions:
-        "Cronofy API tools for the linked account (OAuth refresh token). Use list_calendars before targeting calendar_id."
+        "Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET. Use list_calendars before targeting calendar_id."
     }
   );
 
@@ -97,6 +101,50 @@ async function main() {
       try {
         const client = await session.client();
         const data = await client.profileInformation();
+
+        return jsonResult(data);
+      } catch (e) {
+        return jsonError(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "cronofy_create_application_calendar",
+    {
+      description:
+        "POST /v1/application_calendars (upsert by application_calendar_id), then POST /v1/calendars to set display name. Uses client_id/client_secret from env. Response includes oauth_for_this_application_calendar — store tokens securely; they are a separate sub from CRONOFY_REFRESH_TOKEN.",
+      inputSchema: z.object({
+        calendar_name: z
+          .string()
+          .describe('Display name, e.g. "Pompano Beach"'),
+        application_calendar_id: z
+          .string()
+          .optional()
+          .describe(
+            "Stable app-side id (upsert key). Omit to derive slug from calendar_name."
+          ),
+        color: z
+          .string()
+          .optional()
+          .describe("Optional hex color for createCalendar, e.g. #49BED8")
+      })
+    },
+    async args => {
+      try {
+        const calendar_name = args.calendar_name.trim();
+
+        if (!calendar_name) return jsonError("calendar_name must be non-empty");
+
+        const application_calendar_id =
+          args.application_calendar_id?.trim() ||
+          slugifyApplicationCalendarId(calendar_name);
+
+        const data = await provisionApplicationCalendarWithName(env, {
+          application_calendar_id,
+          calendar_name,
+          color: args.color
+        });
 
         return jsonResult(data);
       } catch (e) {

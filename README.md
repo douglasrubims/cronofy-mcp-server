@@ -2,7 +2,7 @@
 
 Local [**Model Context Protocol**](https://modelcontextprotocol.io/) (stdio) server for the [**Cronofy**](https://www.cronofy.com/) calendar API. Use it from **Cursor**, **Claude Desktop**, or any MCP host that supports stdio servers.
 
-This is an alternative to Cronofy’s hosted Scheduler MCP: it exposes **full API-style** tools (list calendars, read events, upsert/delete events, free/busy, availability rules) using your app’s **OAuth refresh token**.
+This is an alternative to Cronofy’s hosted Scheduler MCP: it exposes **full API-style** tools (list calendars, read events, upsert/delete events, free/busy, availability rules, application calendar provisioning) using your app’s **OAuth refresh token** for user-scoped calls plus **client id/secret** for application calendars.
 
 ## Requirements
 
@@ -109,6 +109,7 @@ Other Claude clients that support MCP over **stdio** (e.g. some CLI or IDE integ
 |------|---------|
 | `cronofy_account_information` | Account metadata |
 | `cronofy_profile_information` | Linked calendar profiles |
+| `cronofy_create_application_calendar` | Upsert application calendar (`POST /v1/application_calendars`), then set display name (`POST /v1/calendars`). Response includes `oauth_for_this_application_calendar` — treat like secrets; separate sub from `CRONOFY_REFRESH_TOKEN`. |
 | `cronofy_list_calendars` | List calendars / `calendar_id`s |
 | `cronofy_read_events` | Read events (`from`+`to` or `next_page`) |
 | `cronofy_create_or_update_event` | Upsert managed event |
