@@ -2,7 +2,8 @@
  * Stdio MCP server — Cronofy calendars, events, free/busy, availability rules.
  *
  * Env (package root `.env` or process env): CRONOFY_CLIENT_ID, CRONOFY_CLIENT_SECRET,
- * CRONOFY_REFRESH_TOKEN; optional CRONOFY_API_BASE (default https://api.cronofy.com).
+ * CRONOFY_REFRESH_TOKEN; optional CRONOFY_APPLICATION_CALENDAR_IDS (comma-separated ids for
+ * cronofy_list_application_calendars); optional CRONOFY_API_BASE (default https://api.cronofy.com).
  */
 
 import path from "node:path";
@@ -13,6 +14,7 @@ import dotenv from "dotenv";
 import { z } from "zod";
 
 import {
+  listApplicationCalendarsSummaries,
   provisionApplicationCalendarWithName,
   slugifyApplicationCalendarId
 } from "./cronofy-application-calendar.mjs";
@@ -69,7 +71,7 @@ async function main() {
     },
     {
       instructions:
-        "Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET. Use list_calendars before targeting calendar_id."
+        "Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET (provision/list summaries). Cronofy has no list-all application calendars API — pass ids or CRONOFY_APPLICATION_CALENDAR_IDS. Use list_calendars before targeting calendar_id."
     }
   );
 
@@ -144,6 +146,47 @@ async function main() {
         });
 
         return jsonResult(data);
+      } catch (e) {
+        return jsonError(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "cronofy_list_application_calendars",
+    {
+      description:
+        "Summarize known application calendars: for each application_calendar_id, POST /v1/application_calendars (upsert) and GET /v1/calendars. Cronofy does not expose list-all-by-client; pass application_calendar_ids or set CRONOFY_APPLICATION_CALENDAR_IDS. OAuth tokens omitted from the response.",
+      inputSchema: z.object({
+        application_calendar_ids: z
+          .array(z.string())
+          .optional()
+          .describe(
+            "Stable ids to query. If omitted or empty, uses CRONOFY_APPLICATION_CALENDAR_IDS from env."
+          )
+      })
+    },
+    async args => {
+      try {
+        const fromArgs =
+          args.application_calendar_ids?.map(s => s.trim()).filter(Boolean) ??
+          [];
+        const ids =
+          fromArgs.length > 0 ? fromArgs : (env.applicationCalendarIds ?? []);
+
+        if (ids.length === 0) {
+          return jsonResult({
+            items: [],
+            note: "No ids: pass application_calendar_ids or set CRONOFY_APPLICATION_CALENDAR_IDS (comma-separated). Cronofy does not list every application calendar for an app."
+          });
+        }
+
+        const items = await listApplicationCalendarsSummaries(env, ids);
+
+        return jsonResult({
+          items,
+          note: "Each item used upsert for that id. Tokens omitted; use cronofy_create_application_calendar or stored refresh tokens for event APIs."
+        });
       } catch (e) {
         return jsonError(e instanceof Error ? e.message : String(e));
       }

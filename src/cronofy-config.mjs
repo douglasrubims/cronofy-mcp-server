@@ -41,6 +41,23 @@ export function loadCronofyEnv() {
     clientSecret,
     refreshToken,
     apiBase,
-    dataCenter
+    dataCenter,
+    applicationCalendarIds: parseApplicationCalendarIdsFromEnv()
   };
+}
+
+/** Comma-separated `application_calendar_id` values for list summaries (no Cronofy discovery API). */
+export function parseApplicationCalendarIdsFromEnv() {
+  const raw = process.env.CRONOFY_APPLICATION_CALENDAR_IDS?.trim();
+
+  if (!raw) return [];
+
+  return [
+    ...new Set(
+      raw
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean)
+    )
+  ];
 }

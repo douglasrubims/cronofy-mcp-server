@@ -60,3 +60,68 @@ export async function provisionApplicationCalendarWithName(env, params) {
     note: "Application calendars ship with one profile and one calendar (see list_calendars). Tokens use read_write scope without create_calendar; default calendar naming follows Cronofy/application_calendar_id — use list_calendars.calendar_name and calendar_id for API calls."
   };
 }
+
+/**
+ * Upsert + list calendars for one id. Omits OAuth tokens from the result.
+ *
+ * @param {{ clientId: string; clientSecret: string; dataCenter?: string }} env
+ * @param {string} application_calendar_id
+ */
+export async function summarizeApplicationCalendar(
+  env,
+  application_calendar_id
+) {
+  const dc = env.dataCenter ? { data_center: env.dataCenter } : {};
+
+  const provisionClient = new Cronofy({
+    client_id: env.clientId,
+    client_secret: env.clientSecret,
+    ...dc
+  });
+
+  const provisioned = await provisionClient.applicationCalendar({
+    application_calendar_id
+  });
+
+  if (!provisioned.access_token)
+    throw new Error("application_calendar response missing access_token");
+
+  const appClient = new Cronofy({
+    access_token: provisioned.access_token,
+    ...dc
+  });
+
+  const listed = await appClient.listCalendars();
+
+  return {
+    application_calendar_id: provisioned.application_calendar_id,
+    sub: provisioned.sub,
+    linking_profile: provisioned.linking_profile,
+    scope: provisioned.scope,
+    calendars: listed.calendars,
+    list_calendars_sub: listed.sub
+  };
+}
+
+/**
+ * @param {{ clientId: string; clientSecret: string; dataCenter?: string }} env
+ * @param {string[]} ids
+ */
+export async function listApplicationCalendarsSummaries(env, ids) {
+  const unique = [...new Set(ids.map(id => id.trim()).filter(Boolean))];
+  /** @type {unknown[]} */
+  const items = [];
+
+  for (const id of unique) {
+    try {
+      items.push(await summarizeApplicationCalendar(env, id));
+    } catch (e) {
+      items.push({
+        application_calendar_id: id,
+        error: e instanceof Error ? e.message : String(e)
+      });
+    }
+  }
+
+  return items;
+}

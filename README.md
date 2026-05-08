@@ -26,6 +26,7 @@ cp .env.example .env
 | `CRONOFY_CLIENT_ID` | yes | Application client ID |
 | `CRONOFY_CLIENT_SECRET` | yes | Application client secret |
 | `CRONOFY_REFRESH_TOKEN` | yes | OAuth refresh token for the account to act on |
+| `CRONOFY_APPLICATION_CALENDAR_IDS` | no | Comma-separated `application_calendar_id` values for `cronofy_list_application_calendars` when you omit tool arguments. Cronofy has no API to discover every id on an app. |
 | `CRONOFY_API_BASE` | no | Default `https://api.cronofy.com`. Use your [data center](https://docs.cronofy.com/developers/data-centers/) host if not US (e.g. `https://api-de.cronofy.com`). |
 
 The server loads `.env` from the **package root** (next to `package.json`), then falls back to process environment.
@@ -110,6 +111,7 @@ Other Claude clients that support MCP over **stdio** (e.g. some CLI or IDE integ
 | `cronofy_account_information` | Account metadata |
 | `cronofy_profile_information` | Linked calendar profiles |
 | `cronofy_create_application_calendar` | Upsert application calendar (`POST /v1/application_calendars`), then list calendars (`GET /v1/calendars`) with that token. One calendar exists per application calendar; default name is Cronofy-defined (often the id slug). Response includes `oauth_for_this_application_calendar` — treat like secrets; separate sub from `CRONOFY_REFRESH_TOKEN`. |
+| `cronofy_list_application_calendars` | For each known `application_calendar_id` (arguments or `CRONOFY_APPLICATION_CALENDAR_IDS`), upsert + list calendars; **no tokens** in response. Cannot enumerate unknown ids — Cronofy has no global list-by-client. |
 | `cronofy_list_calendars` | List calendars / `calendar_id`s |
 | `cronofy_read_events` | Read events (`from`+`to` or `next_page`) |
 | `cronofy_create_or_update_event` | Upsert managed event |
