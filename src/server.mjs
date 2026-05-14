@@ -1,5 +1,5 @@
 /**
- * Stdio MCP server — Cronofy calendars, events, free/busy, availability rules.
+ * Stdio MCP server — Cronofy calendars, events, free/busy, availability query, availability rules.
  *
  * Env (package root `.env` or process env): CRONOFY_CLIENT_ID, CRONOFY_CLIENT_SECRET,
  * CRONOFY_REFRESH_TOKEN; optional CRONOFY_APPLICATION_CALENDAR_IDS (comma-separated ids for
@@ -54,6 +54,43 @@ function compact(obj) {
   return out;
 }
 
+async function cronofySubFromListCalendars(session) {
+  const client = await session.client();
+  const data = await client.listCalendars();
+
+  const sub =
+    data &&
+    typeof data === "object" &&
+    "sub" in data &&
+    typeof data.sub === "string"
+      ? data.sub.trim()
+      : "";
+
+  if (!sub)
+    throw new Error(
+      "cronofy_availability: listCalendars returned no sub; pass sub explicitly."
+    );
+
+  return sub;
+}
+
+function availabilityMemberFromArgs(sub, calendarIds, managedAvailability) {
+  const s = sub.trim();
+  const ids = (calendarIds ?? []).map(x => String(x).trim()).filter(Boolean);
+  const apc = s.startsWith("apc_");
+  const managed =
+    managedAvailability === undefined ? apc : Boolean(managedAvailability);
+
+  /** @type {{ sub: string; managed_availability?: boolean; calendar_ids?: string[] }} */
+  const member = { sub: s };
+
+  if (managed) member.managed_availability = true;
+
+  if (ids.length > 0) member.calendar_ids = ids;
+
+  return member;
+}
+
 async function main() {
   const env = loadCronofyEnv();
 
@@ -71,7 +108,7 @@ async function main() {
     },
     {
       instructions:
-        "Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET (provision/list summaries). Cronofy has no list-all application calendars API — pass ids or CRONOFY_APPLICATION_CALENDAR_IDS. Use list_calendars before targeting calendar_id."
+        "Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET (provision/list summaries). Cronofy has no list-all application calendars API — pass ids or CRONOFY_APPLICATION_CALENDAR_IDS. Use list_calendars before targeting calendar_id. POST /v1/availability is exposed as cronofy_availability (periods/slots vs free_busy)."
     }
   );
 
@@ -216,7 +253,7 @@ async function main() {
     "cronofy_read_events",
     {
       description:
-        "GET /v1/events — events intersecting [from, to]. Supports pagination via next_page URL from prior response.",
+        "GET /v1/events — events intersecting [from, to]. Defaults include_managed=true so API-created (managed) events appear (managed events). Pass include_managed:false to exclude them. Supports pagination via next_page.",
       inputSchema: z
         .object({
           from: z.string().optional().describe("ISO8601 start boundary"),
@@ -239,7 +276,9 @@ async function main() {
     async args => {
       try {
         const client = await session.client();
-        const data = await client.readEvents(compact({ ...args }));
+        const data = await client.readEvents(
+          compact({ include_managed: true, ...args })
+        );
 
         return jsonResult(data);
       } catch (e) {
@@ -303,19 +342,116 @@ async function main() {
   server.registerTool(
     "cronofy_free_busy",
     {
-      description: "GET /v1/free_busy between from and to.",
+      description:
+        "GET /v1/free_busy between from and to. Defaults include_managed=true so managed blocks (managed events) appear; pass include_managed:false to omit. Requires IANA tzid (e.g. America/New_York). Prefer from/to as YYYY-MM-DD or local datetimes without a Z suffix when tzid is set — UTC ISO8601 with Z can trigger Cronofy validation errors.",
       inputSchema: {
         from: z.string(),
         to: z.string(),
         tzid: z.string().optional(),
         calendar_ids: z.array(z.string()).optional(),
-        next_page: z.string().optional()
+        next_page: z.string().optional(),
+        include_managed: z.union([z.boolean(), z.string()]).optional()
       }
     },
     async args => {
       try {
         const client = await session.client();
-        const data = await client.freeBusy(compact({ ...args }));
+        const data = await client.freeBusy(
+          compact({ include_managed: true, ...args })
+        );
+
+        return jsonResult(data);
+      } catch (e) {
+        return jsonError(e instanceof Error ? e.message : String(e));
+      }
+    }
+  );
+
+  server.registerTool(
+    "cronofy_availability",
+    {
+      description:
+        "POST /v1/availability (Cronofy Availability API). Returns available_periods or available_slots for query_periods. Docs/cronofy-node: client.availability({ participants, required_duration, query_periods }). Omit sub to resolve from GET /v1/calendars. For apc_* subs, defaults managed_availability true unless managed_availability is false.",
+      inputSchema: z.object({
+        query_periods: z
+          .array(
+            z.object({
+              start: z.string().describe("ISO8601 query window start"),
+              end: z.string().describe("ISO8601 query window end")
+            })
+          )
+          .min(1),
+        required_duration_minutes: z.coerce
+          .number()
+          .int()
+          .min(1)
+          .max(480)
+          .default(30),
+        response_format: z
+          .enum(["periods", "slots", "overlapping_slots"])
+          .optional(),
+        sub: z
+          .string()
+          .optional()
+          .describe(
+            "Member sub (acc_* / apc_*); omit to use list_calendars.sub"
+          ),
+        managed_availability: z.boolean().optional(),
+        calendar_ids: z.array(z.string()).optional(),
+        start_interval_minutes: z
+          .union([
+            z.literal(5),
+            z.literal(10),
+            z.literal(15),
+            z.literal(20),
+            z.literal(30),
+            z.literal(60)
+          ])
+          .optional(),
+        buffer_before_minutes: z.coerce.number().int().min(0).optional(),
+        buffer_after_minutes: z.coerce.number().int().min(0).optional()
+      })
+    },
+    async args => {
+      try {
+        const client = await session.client();
+
+        const sub =
+          args.sub?.trim() || (await cronofySubFromListCalendars(session));
+
+        const member = availabilityMemberFromArgs(
+          sub,
+          args.calendar_ids,
+          args.managed_availability
+        );
+
+        /** @type {Record<string, unknown>} */
+        const payload = {
+          participants: [{ members: [member], required: "all" }],
+          required_duration: { minutes: args.required_duration_minutes },
+          query_periods: args.query_periods
+        };
+
+        if (args.response_format)
+          payload.response_format = args.response_format;
+
+        if (args.start_interval_minutes !== undefined)
+          payload.start_interval = { minutes: args.start_interval_minutes };
+
+        if (
+          args.buffer_before_minutes !== undefined ||
+          args.buffer_after_minutes !== undefined
+        ) {
+          payload.buffer = {};
+          if (args.buffer_before_minutes !== undefined)
+            payload.buffer.before = {
+              minutes: args.buffer_before_minutes
+            };
+          if (args.buffer_after_minutes !== undefined)
+            payload.buffer.after = { minutes: args.buffer_after_minutes };
+        }
+
+        const data = await client.availability(compact(payload));
 
         return jsonResult(data);
       } catch (e) {

@@ -113,10 +113,11 @@ Other Claude clients that support MCP over **stdio** (e.g. some CLI or IDE integ
 | `cronofy_create_application_calendar` | Upsert application calendar (`POST /v1/application_calendars`), then list calendars (`GET /v1/calendars`) with that token. One calendar exists per application calendar; default name is Cronofy-defined (often the id slug). Response includes `oauth_for_this_application_calendar` — treat like secrets; separate sub from `CRONOFY_REFRESH_TOKEN`. |
 | `cronofy_list_application_calendars` | For each known `application_calendar_id` (arguments or `CRONOFY_APPLICATION_CALENDAR_IDS`), upsert + list calendars; **no tokens** in response. Cannot enumerate unknown ids — Cronofy has no global list-by-client. |
 | `cronofy_list_calendars` | List calendars / `calendar_id`s |
-| `cronofy_read_events` | Read events (`from`+`to` or `next_page`) |
+| `cronofy_read_events` | Read events (`from`+`to` or `next_page`). Defaults **`include_managed: true`** (API-created managed events); pass `include_managed: false` to omit. |
 | `cronofy_create_or_update_event` | Upsert managed event |
 | `cronofy_delete_event` | Delete managed event |
-| `cronofy_free_busy` | Free/busy query |
+| `cronofy_free_busy` | Free/busy (`GET /v1/free_busy`). Defaults **`include_managed: true`**; pass `false` to omit managed blocks. |
+| `cronofy_availability` | Availability query (`POST /v1/availability`) — `available_periods` / `available_slots` for `query_periods` |
 | `cronofy_list_availability_rules` | List availability rules |
 | `cronofy_read_availability_rule` | Read one rule |
 | `cronofy_upsert_availability_rule` | Create/update rule |
