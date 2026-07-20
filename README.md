@@ -29,9 +29,17 @@ cp .env.example .env
 | `CRONOFY_APPLICATION_CALENDAR_IDS` | no | Comma-separated `application_calendar_id` values for `cronofy_list_application_calendars` when you omit tool arguments. Cronofy has no API to discover every id on an app. |
 | `CRONOFY_API_BASE` | no | Default `https://api.cronofy.com`. Use your [data center](https://docs.cronofy.com/developers/data-centers/) host if not US (e.g. `https://api-de.cronofy.com`). |
 
-The server loads `.env` from the **package root** (next to `package.json`), then falls back to process environment.
+The server loads env from the **package root** (next to `package.json`):
 
-**Security:** never commit `.env`. Treat `CRONOFY_CLIENT_SECRET` and `CRONOFY_REFRESH_TOKEN` as secrets.
+| Mode | File | How to select |
+|------|------|---------------|
+| **staging** (default) | `.env` | omit `MCP_ENV` |
+| **production** | `.env.production` | `MCP_ENV=production` or `--env production` |
+
+Templates: `.env.example` (staging), `.env.production.example` (production).
+Process environment (e.g. Cursor `mcp.json` `env` block) overrides file values.
+
+**Security:** never commit `.env` or `.env.production`. Treat `CRONOFY_CLIENT_SECRET` and `CRONOFY_REFRESH_TOKEN` as secrets.
 
 ## Run (stdio)
 
@@ -62,6 +70,11 @@ Project `.cursor/mcp.json` example:
     "cronofy": {
       "command": "node",
       "args": ["/absolute/path/to/cronofy-mcp-server/src/server.mjs"]
+    },
+    "cronofy-production": {
+      "command": "node",
+      "args": ["/absolute/path/to/cronofy-mcp-server/src/server.mjs"],
+      "env": { "MCP_ENV": "production" }
     }
   }
 }

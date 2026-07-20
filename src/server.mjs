@@ -1,7 +1,9 @@
 /**
  * Stdio MCP server — Cronofy calendars, events, free/busy, availability query, availability rules.
  *
- * Env (package root `.env` or process env): CRONOFY_CLIENT_ID, CRONOFY_CLIENT_SECRET,
+ * Env: staging → package root `.env`, production → `.env.production`
+ * (select with MCP_ENV or --env). Then process env overrides.
+ * Variables: CRONOFY_CLIENT_ID, CRONOFY_CLIENT_SECRET,
  * CRONOFY_REFRESH_TOKEN; optional CRONOFY_APPLICATION_CALENDAR_IDS (comma-separated ids for
  * cronofy_list_application_calendars); optional CRONOFY_API_BASE (default https://api.cronofy.com).
  */
@@ -10,9 +12,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import dotenv from "dotenv";
 import { z } from "zod";
 
+import { loadPackageEnv } from "../../load-package-env.mjs";
 import {
   listApplicationCalendarsSummaries,
   provisionApplicationCalendarWithName,
@@ -22,9 +24,9 @@ import { loadCronofyEnv } from "./cronofy-config.mjs";
 import { CronofySession } from "./cronofy-session.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const packageRoot = path.join(__dirname, "..");
 
-dotenv.config({ path: path.join(__dirname, "..", ".env") });
-dotenv.config();
+loadPackageEnv(packageRoot);
 
 function jsonResult(data) {
   return {
