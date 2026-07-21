@@ -14,7 +14,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { loadPackageEnv } from "../../load-package-env.mjs";
+import { loadPackageEnv } from "../load-package-env.mjs";
 import {
   listApplicationCalendarsSummaries,
   provisionApplicationCalendarWithName,
@@ -255,7 +255,7 @@ async function main() {
     "cronofy_read_events",
     {
       description:
-        "GET /v1/events — events intersecting [from, to]. Defaults include_managed=true so API-created (managed) events appear (managed events). Pass include_managed:false to exclude them. Supports pagination via next_page.",
+        "GET /v1/events — events intersecting [from, to]. Defaults include_managed=true so API-created (managed) events appear. Pass include_managed:false to exclude them. Supports pagination via next_page.",
       inputSchema: z
         .object({
           from: z.string().optional().describe("ISO8601 start boundary"),
@@ -345,7 +345,7 @@ async function main() {
     "cronofy_free_busy",
     {
       description:
-        "GET /v1/free_busy between from and to. Defaults include_managed=true so managed blocks (managed events) appear; pass include_managed:false to omit. Requires IANA tzid (e.g. America/New_York). Prefer from/to as YYYY-MM-DD or local datetimes without a Z suffix when tzid is set — UTC ISO8601 with Z can trigger Cronofy validation errors.",
+        "GET /v1/free_busy between from and to. Defaults include_managed=true so managed blocks appear; pass include_managed:false to omit. Requires IANA tzid (e.g. America/New_York). Prefer from/to as YYYY-MM-DD or local datetimes without a Z suffix when tzid is set — UTC ISO8601 with Z can trigger Cronofy validation errors.",
       inputSchema: {
         from: z.string(),
         to: z.string(),

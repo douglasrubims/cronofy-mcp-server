@@ -22,6 +22,7 @@
   },
   "files": [
     "src",
+    "load-package-env.mjs",
     "README.md",
     "LICENSE",
     ".env.example"
