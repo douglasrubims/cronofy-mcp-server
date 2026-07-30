@@ -26,7 +26,7 @@ import { CronofySession } from "./cronofy-session.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const packageRoot = path.join(__dirname, "..");
 
-loadPackageEnv(packageRoot);
+const { mode: envMode } = loadPackageEnv(packageRoot);
 
 function jsonResult(data) {
   return {
@@ -95,6 +95,9 @@ function availabilityMemberFromArgs(sub, calendarIds, managedAvailability) {
 
 async function main() {
   const env = loadCronofyEnv();
+  const envLabel = envMode === "production" ? "PRODUCTION" : "STAGING";
+  const envFileHint =
+    envMode === "production" ? ".env.production" : ".env (staging)";
 
   const session = new CronofySession({
     clientId: env.clientId,
@@ -105,12 +108,11 @@ async function main() {
 
   const server = new McpServer(
     {
-      name: "cronofy-mcp",
+      name: `cronofy-mcp-${envMode}`,
       version: "1.0.0"
     },
     {
-      instructions:
-        "Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET (provision/list summaries). Cronofy has no list-all application calendars API — pass ids or CRONOFY_APPLICATION_CALENDAR_IDS. Use list_calendars before targeting calendar_id. POST /v1/availability is exposed as cronofy_availability (periods/slots vs free_busy)."
+      instructions: `ENVIRONMENT: ${envLabel} (loads mcp/cronofy/${envFileHint}). This server ONLY uses that env file — sibling MCP: neuryn-cronofy-${envMode === "production" ? "staging" : "production"}. Cronofy tools: user OAuth via CRONOFY_REFRESH_TOKEN; application calendars use CRONOFY_CLIENT_ID + CRONOFY_CLIENT_SECRET (provision/list summaries). Cronofy has no list-all application calendars API — pass ids or CRONOFY_APPLICATION_CALENDAR_IDS. Use list_calendars before targeting calendar_id. POST /v1/availability is exposed as cronofy_availability (periods/slots vs free_busy).`
     }
   );
 

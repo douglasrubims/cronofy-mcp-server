@@ -67,9 +67,10 @@ Project `.cursor/mcp.json` example:
 ```json
 {
   "mcpServers": {
-    "cronofy": {
+    "cronofy-staging": {
       "command": "node",
-      "args": ["/absolute/path/to/cronofy-mcp-server/src/server.mjs"]
+      "args": ["/absolute/path/to/cronofy-mcp-server/src/server.mjs"],
+      "env": { "MCP_ENV": "staging" }
     },
     "cronofy-production": {
       "command": "node",
@@ -80,7 +81,7 @@ Project `.cursor/mcp.json` example:
 }
 ```
 
-Or with `${workspaceFolder}` if this repo lives inside a larger project.
+Neuryn workspace uses `neuryn-cronofy-staging` / `neuryn-cronofy-production` with `${workspaceFolder}/mcp/cronofy/...`.
 
 Restart Cursor after changing MCP config. Use **MCP Logs** in the Output panel if the server fails to start.
 
